@@ -1,0 +1,269 @@
+---
+title: "Belkin Elago Exploration"
+author: "Sasa Lukic"
+date: "9 10 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+## Load data
+
+```{r Load data}
+
+library(readr)
+brands <- read.csv(file="BelkinElagoComplete.csv", header = TRUE, sep = ";")
+head(brands, 10)
+```
+
+## Load Libraries
+
+```{r}
+library(funModeling) 
+library(tidyverse) 
+library(Hmisc)
+```
+
+
+## Initial exploration 1
+
+Number of observations (rows) and variables, and a head of the first cases
+
+```{r glimpse}
+
+glimpse(brands)
+
+```
+
+## Initial exploration 2
+
+Checking missing values, zeros, data type, and unique values
+Probably one of the first steps, when we get a new dataset to analyze, is to know if there are missing values (NA in R) and the data type.
+
+The df_status function coming in funModeling can help us by showing these numbers in relative and percentage values. It also retrieves the infinite and zeros statistics.
+
+
+```{r status}
+
+df_status(brands)
+
+```
+
+We see that there are 1097 examples or 11% of the variable zipcode with the zero value. As we know that it is regular zip code value it is fine and we want to transform this variable to categorical. We see that the variable elevel should also be transformed to categorical. Let's do that now:
+
+```{r convert to factor}
+
+brands$elevel <- as.factor(brands$elevel)
+brands$zipcode <- as.factor(brands$zipcode)
+df_status(brands)
+```
+
+* q_zeros: quantity of zeros (p_zeros: in percent)
+* q_inf: quantity of infinite values (p_inf: in percent)
+* q_na: quantity of NA (p_na: in percent)
+* type: factor or numeric
+* unique: quantity of unique values
+
+## Analyzing categorical variables
+
+Now that we have converted our variables to factors, we can run the function freq() that runs for all factor variables. We get some nice plots and tables as the result.
+
+```{r categorical variables}
+
+freq(brands)
+
+```
+
+
+## Analyzing numerical variables
+
+We will see: plot_num and profiling_num. Both run automatically for all numerical/integer variables:
+
+```{r numerical variables}
+
+plot_num(brands)
+profiling_num(brands)
+
+```
+
+## Analyzing numerical and categorical at the same time
+
+describe from Hmisc package 
+
+```{r num-cat}
+
+library(Hmisc)
+describe(brands)
+
+```
+
+We should pay special attention to variable car. It is just not realistic that our customers have on average 10 cars or that the most of the customers have 18 cars or more. It would be more realistic that we are dealing here with codes for car brands, so maybe we should convert the variable cars to factor. 
+
+``` {r convert car to factor}
+
+brands$car <- as.factor(brands$car)
+
+freq(brands$car)
+```
+
+
+# Let's do it all over again for practice using ggplot2 library
+
+```{r using ggplot}
+
+library(ggplot2)
+str(brands)
+
+
+```
+
+Create histograms for numerical variables
+
+```{r histogram}
+
+salary_hist <- ggplot(brands, aes(x=brands$salary)) + geom_histogram(bins=10) + theme_classic()
+age_hist <- ggplot(brands, aes(x=brands$age)) + geom_histogram(bins=12) + theme_classic()
+credit_hist <- ggplot(brands, aes(x=brands$credit)) + geom_histogram(bins=10) + theme_classic()
+
+salary_hist
+age_hist
+credit_hist
+
+```
+
+Create bar charts for categorical variables
+
+```{r bar charts}
+
+elevel_bar <- ggplot(brands, aes(x = elevel)) + geom_bar()
+
+car_bar <- ggplot(brands, aes(x = car)) + geom_bar() 
+
+zip_bar <- ggplot(brands, aes(x = zipcode)) + geom_bar()
+  
+brand_bar <- ggplot(brands, aes(x = brand)) + geom_bar()  
+
+elevel_bar
+car_bar
+zip_bar
+brand_bar 
+```
+
+Relations between the variables
+
+Let us first see the relations between education level and salary_hist:
+
+```{r relations}
+elevel_salary <- ggplot(brands, aes(x = elevel, y = salary)) +
+    geom_boxplot()
+elevel_salary
+```
+
+
+There is linear relationship between salary and education level. The lowest educated customers earn on average around 40000 and the highest educated almost 140000. 
+
+We can also plot variable brand by setting the color parameter: 
+
+
+```{r}
+elevel_salary_brand <- ggplot(brands, aes(x = elevel, y = salary, color = brand)) +
+    geom_boxplot()
+elevel_salary_brand
+```
+
+## Relationship between age and brand is also interesting with younger customers preferably buying Elago and older customers Belkin
+```{r}
+brand_age <- ggplot(brands, aes(x = brand, y = age)) +
+    geom_boxplot()
+brand_age
+
+brand_salary <-ggplot(brands, aes(x = brand, y = salary)) +
+    geom_boxplot()
+
+brand_salary
+
+```
+
+## This plot is telling us that customers who buy Belking earn in range between 60000 and 110000, whereas Elago buyers earn between 40000 and 125000. 
+
+```{r trying things out}
+
+brands %>% 
+ ggplot(aes(x = salary, fill = elevel)) +
+    geom_histogram(bins = 25) 
+
+brands %>% 
+ggplot(aes(x = elevel, fill = brand)) +
+           geom_bar()
+
+brands %>% 
+ggplot(aes(x = elevel, fill = brand)) +
+           geom_bar(position= "fill")
+
+brands %>% 
+ggplot( aes(x = elevel, y = brand)) +
+           geom_jitter() + coord_flip()
+
+
+
+brands %>%
+  ggplot(aes(x=age, y = elevel, color=brand)) + geom_jitter() +coord_flip()
+```
+
+```{r}
+ggplot(brands, aes(salary, age)) + geom_point() + theme_classic() + geom_point(color = ifelse(brands$brand == "Belkin", 'red', 'black')) 
+
+ggplot(brands, aes(salary, age)) + geom_point() + theme_classic() + geom_point(color = ifelse(brands$brand == "Elago", 'purple', 'black'))
+```
+
+##Correlation matrix and variable importance
+
+Here we want to check correlation between our variables. First we create a table and a plot with correlations to our target brand
+
+
+```{r variable importance}
+correlation_table(data=brands, target="brand")
+
+variable_importance <- var_rank_info(data=brands, target="brand")
+
+ggplot(variable_importance, aes(x = reorder(var, gr), y = gr, fill = var)) + 
+  geom_bar(stat = "identity") + 
+  coord_flip() + 
+  theme_bw() + 
+  xlab("") + 
+  ylab("Variable Importance 
+       (based on Information Gain)"
+       ) + 
+  guides(fill = FALSE)
+
+```
+* en entropy measured in  bits
+* mi mutual information
+* ig information gain
+* gr gain ratio
+
+We see that the most important variable for predicting brand would be salary followed with credit, and then age and elevel. We want to check if salary and credit are highly corelated. 
+
+```{r check correlation between salary and credit}
+cor(brands$salary, brands$credit)
+```
+
+It seems that they are highly corelated. We will have to omit credit variable from our model.
+
+Let us continue with the funModeling library and make some cross plots.
+This plot intent to show in real scenarios if a variable is or not important, making a visual summary of it, (by grouping numerical variables into bins/groups).
+
+```{r cross-plot}
+
+brands$salary_discretized = 
+  equal_freq(var=brands$salary, n_bins = 8)
+summary(brands$salary)
+
+
+cross_plot(brands, input="salary_discretized", target="brand", auto_binning = FALSE)
+cross_plot(brands, input="age", target="brand")
+cross_plot(brands, input="elevel", target="brand")
+```
+
